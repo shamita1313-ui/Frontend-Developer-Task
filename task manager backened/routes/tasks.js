@@ -1,62 +1,56 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middlewares/auth');
-const Task = require('../models/Task');
+const Task = require('../models/Task'); // Update path if needed
 
-// Get all tasks for logged-in user
-router.get('/', auth, async (req, res) => {
+// Get all tasks
+router.get('/', async (req, res) => {
   try {
-    const tasks = await Task.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const tasks = await Task.find();
     res.json(tasks);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    console.error('Fetch tasks error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Create a new task
-router.post('/', auth, async (req, res) => {
-  const { title, description } = req.body;
-  if (!title) {
-    return res.status(400).json({ msg: 'Title is required' });
-  }
+router.post('/', async (req, res) => {
   try {
-    const newTask = new Task({
-      user: req.user.id, // use req.user.id here
-      title,
-      description,
-    });
-    const task = await newTask.save();
-    res.status(201).json(task);
+    console.log('Task create request body:', req.body); // debug log
+    const newTask = new Task(req.body);
+    const savedTask = await newTask.save();
+    res.status(201).json(savedTask);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    console.error('Create task error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Update a task by id
-router.put('/:id', auth, async (req, res) => {
-  const { title, description, status } = req.body;
+// Update a task
+router.put('/:id', async (req, res) => {
   try {
-    let task = await Task.findOne({ _id: req.params.id, user: req.user.id }); // use req.user.id
-    if (!task) return res.status(404).json({ msg: 'Task not found' });
-    // Update fields only if provided
-    if (title !== undefined) task.title = title;
-    if (description !== undefined) task.description = description;
-    if (status !== undefined) task.status = status;
-    task = await task.save();
-    res.json(task);
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.json(updatedTask);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    console.error('Task update error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Delete a task by id
-router.delete('/:id', auth, async (req, res) => {
+// Delete a task
+router.delete('/:id', async (req, res) => {
   try {
-    const task = await Task.findOneAndRemove({ _id: req.params.id, user: req.user.id }); // use req.user.id
-    if (!task) return res.status(404).json({ msg: 'Task not found' });
-    res.json({ msg: 'Task removed' });
+    const deletedTask = await Task.findByIdAndDelete(req.params.id);
+    if (!deletedTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.json({ message: 'Task deleted successfully' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    console.error('Task delete error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
